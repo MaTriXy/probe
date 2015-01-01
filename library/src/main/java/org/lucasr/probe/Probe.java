@@ -26,39 +26,50 @@ import java.lang.reflect.InvocationHandler;
 /**
  * Dissect layout traversals on-the-fly.
  * <p>
- * It uses a {@link Filter} to select the {@link View}s in the hierarchy that
- * can be intercepted by the provided {@link Interceptor}.
- *
- * In order to intercept method calls on the filtered {@link View}s, you should
- * inflate your layout using a {@link Probe} instance. For example:
+ * In order to intercept view method calls, you should deploy an
+ * {@link Interceptor} in the target {@link Context} with an (optional)
+ * {@link Filter}. For example:
  * <pre>
  * public final class MainActivity extends Activity {
  *     @Override
  *     protected void onCreate(Bundle savedInstanceState) {
+ *         Probe.deploy(this, new MyInterceptor())
  *         super.onCreate(savedInstanceState);
- *         Probe probe = new Probe(this, new MyInterceptor(this));
- *         View root = probe.inflate(R.layout.main_activity, null);
- *         setContentView(root);
+ *         setContentView(R.id.main_activity);
  *     }
  * }
  * </pre>
- * If no {@link Filter} is provided, the {@link Probe} will affect all inflated
- * {@link View}s.
  *
- * @see #inflate(int, android.view.ViewGroup)
+ * <h2>View proxies</h2>
+ * <p>If no {@link Filter} is provided, the {@link Interceptor} will act on
+ * every inflated {@link View} in the target {@link Context}.</p>
+ *
+ * <p>Probe intercepts {@link View} method calls by inflating proxies
+ * instead of the original views. These proxies can be generated either
+ * at build or run time.</p>
+ *
+ * <p>If you use Gradle, you can use Probe's plugin which will take care
+ * of generating the proxy classes for you. Build-time proxies add virtually
+ * no runtime overhead as they're just subclasses of the views referenced
+ * in your layout resources.</p>
+ *
+ * <p>If you app doesn't include build-time proxies, Probe will dynamically
+ * generate {@link View} proxy classes at runtime using DexMaker, if your
+ * app was compiled with DexMaker as a dependency. Runtime proxies are
+ * relatively slow to generate and will greatly affect the time to
+ * inflate your layouts. They should only be used for debugging
+ * purposes.</p>
+ *
+ * @see #deploy(Context,Interceptor)
+ * @see #deploy(Context,Interceptor,Filter)
  * @see Interceptor
  * @see Filter
  */
 public class Probe {
-    private final LayoutInflater mInflater;
     private final Interceptor mInterceptor;
     private final Filter mFilter;
 
-    public Probe(Context context, Interceptor interceptor) {
-        this(context, interceptor, null);
-    }
-
-    public Probe(Context context, Interceptor interceptor, Filter filter) {
+    private Probe(Context context, Interceptor interceptor, Filter filter) {
         if (context == null) {
             throw new IllegalArgumentException("Context should not be null.");
         }
@@ -66,9 +77,6 @@ public class Probe {
         if (interceptor == null) {
             throw new IllegalArgumentException("Interceptor should not be null.");
         }
-
-        mInflater = LayoutInflater.from(context).cloneInContext(context);
-        mInflater.setFactory2(new ProbeViewFactory(context, this));
 
         mInterceptor = interceptor;
         mFilter = filter;
@@ -83,16 +91,17 @@ public class Probe {
     }
 
     /**
-     * Inflate a new view hierarchy from the specified xml resource.
+     * Deploy an {@link Interceptor} in the given {@link Context}.
      */
-    public View inflate(int resource, ViewGroup root) {
-        return mInflater.inflate(resource, root);
+    public static void deploy(Context context, Interceptor interceptor) {
+        deploy(context, interceptor, null);
     }
 
     /**
-     * Inflate a new view hierarchy from the specified xml resource.
+     * Deploy an {@link Interceptor} in the given {@link Context} with a {@link Filter}.
      */
-    public View inflate(int resource, ViewGroup root, boolean attachToRoot) {
-        return mInflater.inflate(resource, root, attachToRoot);
+    public static void deploy(Context context, Interceptor interceptor, Filter filter) {
+        final Probe probe = new Probe(context, interceptor, filter);
+        LayoutInflater.from(context).setFactory2(new ProbeViewFactory(context, probe));
     }
 }

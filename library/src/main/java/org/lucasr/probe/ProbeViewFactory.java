@@ -22,6 +22,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 
 import java.io.IOException;
+import java.lang.reflect.Modifier;
+
+import static org.lucasr.probe.ViewClassUtil.findViewClass;
 
 /**
  * {@link LayoutInflater.Factory2} used by a {@link Probe} instance to
@@ -33,7 +36,9 @@ import java.io.IOException;
  * @see ViewProxyBuilder
  */
 class ProbeViewFactory implements LayoutInflater.Factory2 {
-    private static final String DEX_CACHE_DIRECTORY = "probe";
+    private static final String TAG_FRAGMENT = "fragment";
+    private static final String TAG_INTERNAL_CLASS = "com.android.internal";
+    private static final String TAG_VIEW_STUB = "ViewStub";
 
     private final Context mContext;
     private final Probe mProbe;
@@ -43,13 +48,24 @@ class ProbeViewFactory implements LayoutInflater.Factory2 {
         mProbe = probe;
     }
 
-    private View createProxyView(String name, AttributeSet attrs) throws ClassNotFoundException {
+    private View createProxyView(Context context, String name, AttributeSet attrs)
+            throws ClassNotFoundException {
         try {
-            return ViewProxyBuilder.forClass(ViewClassUtil.findViewClass(mContext, name))
-                    .dexCache(mContext.getDir(DEX_CACHE_DIRECTORY, Context.MODE_PRIVATE))
+            final Class<?> viewClass = findViewClass(mContext, name);
+
+            // Probe can't wrap final or abstract View classes, just bail.
+            final int modifiers = viewClass.getModifiers();
+            if (Modifier.isFinal(modifiers) || Modifier.isAbstract(modifiers)) {
+                return null;
+            }
+
+            return ViewProxyBuilder.forClass(context, viewClass)
                     .constructorArgValues(mContext, attrs)
                     .interceptor(mProbe.getInterceptor())
                     .build();
+        } catch (ClassCastException e) {
+            // Not a View subclass, just bail.
+            return null;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create View proxy", e);
         }
@@ -57,12 +73,18 @@ class ProbeViewFactory implements LayoutInflater.Factory2 {
 
     @Override
     public View onCreateView(View parent, String name, Context context, AttributeSet attrs) {
+        if (name.equals(TAG_FRAGMENT) ||
+            name.startsWith(TAG_INTERNAL_CLASS) ||
+            name.contains(TAG_VIEW_STUB)) {
+            return null;
+        }
+
         final org.lucasr.probe.Filter filter = mProbe.getFilter();
 
         // Proxy the whole view tree if filter is undefined.
         if (filter == null || filter.shouldIntercept(mContext, parent, name, attrs)) {
             try {
-                return createProxyView(name, attrs);
+                return createProxyView(context, name, attrs);
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
@@ -73,6 +95,6 @@ class ProbeViewFactory implements LayoutInflater.Factory2 {
 
     @Override
     public View onCreateView(String name, Context context, AttributeSet attrs) {
-        return null;
+        return onCreateView(null, name, context, attrs);
     }
 }

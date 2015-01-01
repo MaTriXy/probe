@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-package org.lucasr.probe.sample;
+package org.lucasr.probe.internal
 
-import android.app.Activity;
-import android.os.Bundle;
+import com.android.annotations.NonNull;
+import org.gradle.api.NamedDomainObjectFactory;
+import org.gradle.internal.reflect.Instantiator
+import org.lucasr.probe.BuildVariantConfig;
 
-import org.lucasr.probe.Probe;
-import org.lucasr.probe.interceptors.OvermeasureInterceptor;
+public class BuildVariantConfigFactory implements NamedDomainObjectFactory<BuildVariantConfig> {
+    @NonNull
+    private final Instantiator instantiator;
 
-public final class MainActivity extends Activity {
+    public BuildVariantConfigFactory(@NonNull Instantiator instantiator) {
+        this.instantiator = instantiator;
+    }
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        Probe.deploy(this, new OvermeasureInterceptor(R.id.root));
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.main_activity);
+    public BuildVariantConfig create(String name) {
+        return instantiator.newInstance(BuildVariantConfig.class, name);
     }
 }

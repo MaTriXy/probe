@@ -14,19 +14,27 @@
  * limitations under the License.
  */
 
-package org.lucasr.probe.sample;
+package org.lucasr.probe
 
-import android.app.Activity;
-import android.os.Bundle;
+import com.android.annotations.NonNull
 
-import org.lucasr.probe.Probe;
-import org.lucasr.probe.interceptors.OvermeasureInterceptor;
+class BuildVariantConfig {
+    private final String name
+    private boolean enabled
 
-public final class MainActivity extends Activity {
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        Probe.deploy(this, new OvermeasureInterceptor(R.id.root));
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.main_activity);
+    public BuildVariantConfig(@NonNull String name) {
+        this.name = name
+    }
+
+    public String getName() {
+        return name
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled
+    }
+
+    public boolean getEnabled() {
+        return enabled
     }
 }

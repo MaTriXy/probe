@@ -6,7 +6,6 @@ Dissect layout traversals on Android.
 ![](images/sample.png)
 
 
-
 Features
 --------
 - Intercept `View` methods.
@@ -17,51 +16,93 @@ Features
 - Override any of these methods on-the-fly.
 - Layout debugging:
   - `OvermeasureInterceptor`: Tints views according to the number of times they got measured in a single traversal.
-
+  - `LayoutBoundsInterceptor`: Equivalent to Android's "Show layout bounds" developer option. The main difference being that you can show bounds only for specific views.
 
 
 Usage
 -----
 
-1. Implement an `Interceptor`:
-```java
-public class DrawGreen extends Interceptor {
-    private final Paint mPaint;
+ 1. Add buildscript dependency:
 
-    public DrawGreen() {
-        mPaint = new Paint();
-        mPaint.setColor(Color.GREEN);
-    }
+  ```groovy
+  buildscript {
+      ...
+      dependencies {
+          ...
+          classpath 'org.lucasr.probe:gradle-plugin:0.1.3'
+      }
+  }
+  ```
 
-    @Override
-    public void onDraw(View view, Canvas canvas) {
-        canvas.drawPaint(mPaint);
-    }
-}
-```
-2. Create a `Probe` and inflate a layout:
-```java
-Probe probe = new Probe(this, new DrawGreen(), new Filter.ViewId(R.id.view2));
-View root = probe.inflate(R.layout.main_activity, null);
-```
+ 2. Apply the plugin to your app’s `build.gradle`:
+ 
+  ```groovy
+  apply plugin: 'org.lucasr.probe'
+  ```
+
+ 3. Enable Probe on a build variant:
+
+  ```groovy
+  probe {
+      buildVariants {
+          debug {
+              enabled = true
+          }
+      }
+  }
+  ```
+
+ 4. Implement an `Interceptor`:
+
+  ```java
+  public class DrawGreen extends Interceptor {
+      private final Paint mPaint;
+  
+      public DrawGreen() {
+          mPaint = new Paint();
+          mPaint.setColor(Color.GREEN);
+      }
+  
+      @Override
+      public void onDraw(View view, Canvas canvas) {
+          canvas.drawPaint(mPaint);
+      }
+  }
+  ```
+
+
+ 2. Deploy your `Interceptor` with an (optional) `Filter`:
+ 
+ ```java
+ public final class MainActivity extends Activity {
+     @Override
+     protected void onCreate(Bundle savedInstanceState) {
+         Probe.deploy(this, new DrawGreen(), new Filter.ViewId(R.id.view2));
+         super.onCreate(savedInstanceState);
+         setContentView(R.id.main_activity);
+     }
+ }
+ ```
 
 
 Download
 --------
 
 Download [the latest JAR][1] or grab via Gradle:
+
 ```groovy
-compile 'org.lucasr.probe:probe:0.1.0'
+compile 'org.lucasr.probe:probe:0.1.3'
 ```
+
 or Maven:
+
 ```xml
 <dependency>
   <groupId>org.lucasr.probe</groupId>
   <artifactId>probe</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.3</version>
 </dependency>
 ```
-
 
 
 License
@@ -82,4 +123,4 @@ License
     limitations under the License.
 
 
- [1]: http://repository.sonatype.org/service/local/artifact/maven/redirect?r=central-proxy&g=org.lucasr.dspec&a=dspec&v=LATEST
+ [1]: https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=org.lucasr.probe&a=probe&e=aar&v=LATEST

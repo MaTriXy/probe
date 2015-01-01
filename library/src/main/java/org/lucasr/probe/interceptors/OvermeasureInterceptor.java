@@ -16,7 +16,6 @@
 
 package org.lucasr.probe.interceptors;
 
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -62,21 +61,21 @@ public class OvermeasureInterceptor extends Interceptor {
 
     private final Paint mTintPaint;
 
-    public OvermeasureInterceptor(Context context, int rootId) {
+    public OvermeasureInterceptor(int rootId) {
         mRootId = rootId;
         mMeasureByView = new WeakHashMap<View, Integer>();
         mTintPaint = new Paint();
     }
 
-    private void forceLayout(View view) {
-        view.forceLayout();
+    private void forceLayoutRecursive(View view) {
+        invokeForceLayout(view);
 
         if (view instanceof ViewGroup) {
             final ViewGroup viewGroup = (ViewGroup) view;
 
             final int count = viewGroup.getChildCount();
             for (int i = 0; i < count; i++) {
-                forceLayout(viewGroup.getChildAt(i));
+                forceLayoutRecursive(viewGroup.getChildAt(i));
             }
         }
     }
@@ -162,7 +161,7 @@ public class OvermeasureInterceptor extends Interceptor {
         if (view.getId() == mRootId) {
             // Clear all measure spec caches and make sure all the
             // views will be redrawn.
-            forceLayout(view);
+            forceLayoutRecursive(view);
             invalidate(view);
         }
     }
